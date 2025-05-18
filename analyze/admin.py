@@ -1,3 +1,5 @@
 from django.contrib import admin
 
-# Register your models here.
+from analyze.models import Doc, UserToDoc, Price, Cart
+
+admin.site.register([Doc, UserToDoc, Price, Cart])

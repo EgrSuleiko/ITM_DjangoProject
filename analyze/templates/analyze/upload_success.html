@@ -1,0 +1,11 @@
+{% extends 'analyze/base.html' %}
+
+{% block title %}| Успешно{% endblock %}
+
+{% block content %}
+    Файл успешно загружен
+    <a href="{% url 'analyze:upload' %}">Загрузить ещё</a>
+{% endblock %}
+
+
+
