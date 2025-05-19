@@ -1,6 +1,6 @@
-{% extends 'analyze/base.html' %}
+{% extends 'base.html' %}
 
-{% block title %}| Главная{% endblock %}
+{% block title %}| Галерея{% endblock %}
 
 {% block content %}
     {% if docs %}
@@ -9,12 +9,12 @@
                 <li class="list-group-item">
                     <p>id: {{ doc.id }}</p>
                     <p>path: {{ doc.path }}</p>
-                    <p>created {{ doc.date }}</p>
                     <img class="img-fluid" src="{{ doc.image_url }}" alt="{{ doc.image_url }}">
+                    <time class="text-muted">{{ doc.date }}</time>
                 </li>
             {% endfor %}
         </ol>
     {% else %}
-        <p>Ни одного документа не загружено</p>
+        <p>Ни одного документа не загружено или нет связи с сервером</p>
     {% endif %}
 {% endblock %}

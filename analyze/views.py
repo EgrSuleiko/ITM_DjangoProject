@@ -1,14 +1,59 @@
 import requests
+import json
+from datetime import datetime
 from django.shortcuts import render, redirect
 from django.views import View
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.decorators import login_required
 
-from analyze.models import Doc
+from analyze.models import Doc, Price, UserToDoc
 from analyze.forms import FileUploadForm
 
 from django_project import settings
 
 
-class FileUploadView(View):
+def index(request):
+    return render(request, 'analyze/index.html')
+
+
+@login_required()
+def gallery(request):
+    displayed_docs = []
+    docs = []
+    try:
+        response = requests.get(f'{settings.PHOTO_SERVICE_URL}/documents')
+        response.raise_for_status()
+        docs = response.json()
+    except requests.exceptions.RequestException as e:
+        print(e)
+
+    user_docs_server_id = set(
+        UserToDoc.objects.select_related('doc')
+        .filter(user_id=request.user.id)
+        .values_list('doc__server_id', flat=True)
+    )
+
+    for doc in docs:
+        if doc['id'] in user_docs_server_id:
+            displayed_docs.append(doc)
+
+    for doc in displayed_docs:
+        doc['image_url'] = f'{settings.PHOTO_SERVICE_URL}/documents/file/{doc['path']}'
+        doc['date'] = datetime.strptime(doc['date'], '%Y-%m-%dT%H:%M:%S.%f')
+
+    context = {'docs': displayed_docs, 'settings': settings}
+    return render(request, 'analyze/gallery.html', context)
+
+
+def prices(request):
+    prices = []
+
+    prices = Price.objects.all().order_by('price')
+    context = {'prices': prices}
+    return render(request, 'analyze/prices.html', context)
+
+
+class FileUploadView(LoginRequiredMixin, View):
     template_name = 'analyze/upload.html'
 
     def get(self, request):
@@ -18,11 +63,8 @@ class FileUploadView(View):
     def post(self, request):
         form = FileUploadForm(request.POST, request.FILES)
 
-        if not form.is_valid():
-            return render(request, self.template_name, {'form': form, 'error': 'Некорректная форма'})
-
+        file = request.FILES['file']
         try:
-            file = request.FILES['file']
             response = requests.post(
                 url=f'{settings.PHOTO_SERVICE_URL}/documents/upload',
                 files={'uploaded_file': (file.name, file, file.content_type)},
@@ -30,39 +72,29 @@ class FileUploadView(View):
             )
             response.raise_for_status()
 
-            return redirect('analyze:upload_success')
-
         except requests.exceptions.RequestException as e:
             return render(request, self.template_name, {'form': form,
-                                                        'error': f'Ошибка загрузки файла {str(e)}',
-                                                        'response': response})
+                                                        'error': f'Ошибка загрузки файла {str(e)}'})
 
-        # except Exception as e:
-        #     return render(request, self.template_name,
-        #                   {'form': form, 'error': f'Ошибка {str(e)}'})
+        try:
+            response_content = json.loads(response.content.decode('utf-8'))
+        except json.decoder.JSONDecodeError as e:
+            return render(request, self.template_name, {'form': form,
+                                                        'error': f'Ошибка загрузки файла {str(e)}'})
+
+        new_doc = Doc(server_id=response_content, file_type=file.content_type.split('/')[-1], size=file.size)
+        new_doc.save()
+
+        new_user_to_doc = UserToDoc(doc=new_doc, user_id=request.user.id)
+        new_user_to_doc.save()
+        return redirect('analyze:upload_success')
 
 
+@login_required()
 def upload_success(request):
     return render(request, 'analyze/upload_success.html')
 
 
-def index(request):
-    docs = []
-    try:
-        response = requests.get(f'{settings.PHOTO_SERVICE_URL}/documents')
-        response.raise_for_status()
-        docs = response.json()
-    except requests.exceptions.RequestException as e:
-        print(e)
-
-    for doc in docs:
-        doc['image_url'] = f'{settings.PHOTO_SERVICE_URL}/documents/file/{doc['path']}'
-
-    context = {'docs': docs, 'settings': settings}
-    return render(request, 'analyze/index.html', context)
-
-
-def show_doc(request, doc_id):
-    doc = Doc.objects.get(id=doc_id)
-    context = {'doc': doc, 'settings': settings}
-    return render(request, 'analyze/doc.html', context)
+@login_required()
+def cart(request):
+    return render(request, 'analyze/cart.html')

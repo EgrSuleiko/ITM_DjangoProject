@@ -1,20 +1,6 @@
-{% extends 'analyze/base.html' %}
-
-{% block title %}| Главная{% endblock %}
+{% extends 'base.html' %}
 
 {% block content %}
-    {% if docs %}
-        <ol class="list-group">
-            {% for doc in docs %}
-                <li class="list-group-item">
-                    <p>id: {{ doc.id }}</p>
-                    <p>path: {{ doc.path }}</p>
-                    <p>created {{ doc.date }}</p>
-                    <img class="img-fluid" src="{{ doc.image_url }}" alt="{{ doc.image_url }}">
-                </li>
-            {% endfor %}
-        </ol>
-    {% else %}
-        <p>Ни одного документа не загружено</p>
-    {% endif %}
+    <p>Сервис позволяет проанализировать наличие текста на изображении</p>
+    <p>Для работы требуется авторизация</p>
 {% endblock %}

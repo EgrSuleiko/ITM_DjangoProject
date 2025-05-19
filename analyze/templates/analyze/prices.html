@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+
+{% block title %}| Цены{% endblock %}
+
+{% block content %}
+    <table class="table">
+        <tr>
+            <th>Формат изображения</th>
+            <th>Цена</th>
+            <th>Расчетная стоимость анализа файла <span class="size-container">(<span
+                    id="current_size">{{ price_control_range }}</span> Мб)</span></th>
+        </tr>
+        {% for price in prices %}
+            <tr>
+                <td>.{{ price.file_type }} </td>
+                <td>{{ price.price }} ₽/Кб</td>
+                <td class="calculated-price" data-price="{{ price.price }}">0.00 ₽</td>
+            </tr>
+        {% endfor %}
+    </table>
+    <form class="form-group">
+        <label for="price_control_range">Задайте вес вашего документа (Мб)</label>
+        <input type="range" class="form-control-range w-50" id="price_control_range" value="5" min="0.1"
+               max="50" step="0.1">
+        <output id="rangeValue"></output>
+
+    </form>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const range = document.getElementById('price_control_range');
+            const rangeValue = document.getElementById('rangeValue');
+            const currentSize = document.getElementById('current_size');
+            const calculatedPrices = document.querySelectorAll('.calculated-price');
+
+            function updateCalculations() {
+                const sizeMB = parseFloat(range.value);
+                const sizeKB = sizeMB * 1024;
+
+                rangeValue.value = sizeMB.toFixed(1);
+                current_size.textContent = sizeMB.toFixed(1);
+
+                calculatedPrices.forEach(td => {
+                    const pricePerKb = parseFloat(td.dataset.price);
+                    const total = (pricePerKb * sizeKB).toFixed(2);
+                    td.textContent = `${total} ₽`;
+                });
+            }
+
+            range.addEventListener('input', updateCalculations);
+            updateCalculations();
+        });
+    </script>
+
+    <style>
+        .size-container {
+            display: inline-block;
+            min-width: 120px;
+        }
+    </style>
+
+{% endblock %}

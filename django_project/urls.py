@@ -23,6 +23,7 @@ from django_project import settings
 urlpatterns = [
     path('', include('analyze.urls')),
     path('admin/', admin.site.urls),
+    path('accounts/', include('django.contrib.auth.urls')),
 ]
 
 if settings.DEBUG:
