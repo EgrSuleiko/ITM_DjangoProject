@@ -3,6 +3,7 @@
 {% block title %}| Галерея{% endblock %}
 
 {% block content %}
+    <h1 class="text">Изображения {{ user.username }}</h1>
     {% if docs %}
         <ol class="list-group">
             {% for doc in docs %}
@@ -11,6 +12,25 @@
                     <p>path: {{ doc.path }}</p>
                     <img class="img-fluid" src="{{ doc.image_url }}" alt="{{ doc.image_url }}">
                     <time class="text-muted">{{ doc.date }}</time>
+
+                    {% if doc.paid %}
+                        <form method="post" action="{% url 'analyze:text' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="doc_id" value="{{ doc.id }}">
+                            <button type="submit" class="btn btn-primary">Просмотреть текст</button>
+                        </form>
+                    {% else %}
+                        <form method="post" action="{% url 'analyze:add_to_cart' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="server_doc_id" value="{{ doc.id }}">
+                            {% if doc.in_cart %}
+                                <button disabled type="submit" class="btn btn-primary">В корзине</button>
+                            {% else %}
+                                <button type="submit" class="btn btn-primary">Добавить в корзину</button>
+                            {% endif %}
+                        </form>
+                    {% endif %}
+
                 </li>
             {% endfor %}
         </ol>

@@ -4,6 +4,59 @@
 
 {% block content %}
 
-    <p>Корзина</p>
+    <h1 class="text">Неоплаченные заказы</h1>
+    <table class="table">
+        <tr>
+            <th>Номер изображения</th>
+            <th>Стоимость обработки</th>
+            <th>Действия</th>
+            <th></th>
+        </tr>
+        {% for item in cart %}
+            {% if not item.payment %}
+                <tr>
+                    <td>{{ item.doc_id }}</td>
+                    <td>{{ item.order_price|floatformat:2 }} ₽</td>
+                    <td>
+                        <form method="post" action="{% url 'analyze:cart_payment' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="cart_id" value="{{ item.id }}">
+                            <button type="submit" class="btn btn-primary">Оплатить</button>
+                            <input class="form-check-input" type="checkbox" name="rus_lang"
+                                   id="rus_lang_checkbox_{{ item.doc_id }}">
+                            <label class="form-label" for="rus_lang_checkbox_{{ item.doc_id }}">Документ на русском
+                                языке</label>
+                        </form>
+                    </td>
+                    <td>
+                        <form method="post" action="{% url 'analyze:cart_payment' %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger">Удалить</button>
+                        </form>
+                    </td>
+
+                </tr>
+            {% endif %}
+        {% endfor %}
+        <form method="post" action="">
+
+        </form>
+    </table>
+
+    <h1 class="text">Архив заказов</h1>
+    <table class="table">
+        <tr>
+            <th>Номер изображения</th>
+            <th>Стоимость обработки</th>
+        </tr>
+        {% for item in cart %}
+            {% if item.payment %}
+                <tr>
+                    <td>{{ item.doc_id }}</td>
+                    <td>{{ item.order_price|floatformat:2 }} ₽</td>
+                </tr>
+            {% endif %}
+        {% endfor %}
+    </table>
 
 {% endblock %}
