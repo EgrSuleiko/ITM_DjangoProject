@@ -5,44 +5,65 @@
 {% block content %}
 
     <h1 class="text">Неоплаченные заказы</h1>
+
     <table class="table">
         <tr>
             <th>Номер изображения</th>
             <th>Стоимость обработки</th>
+            <th>Язык документа</th>
             <th>Действия</th>
             <th></th>
         </tr>
         {% for item in cart %}
             {% if not item.payment %}
                 <tr>
-                    <td>{{ item.doc_id }}</td>
+                    <td>
+                        <label>
+                            <input class="form-check-input" type="checkbox" name="selected_cart_ids"
+                                   form="select_for_pay"
+                                   value="{{ item.id }}">
+                            {{ item.doc.server_id }}
+                        </label>
+                    </td>
                     <td>{{ item.order_price|floatformat:2 }} ₽</td>
                     <td>
+                        <form method="post" action="{% url 'analyze:change_language' %}">
+                            {% csrf_token %}
+                            <label class="form-label">
+                                {{ item.doc.language }}
+                            </label>
+                            <input type="hidden" name="cart_id" value="{{ item.id }}">
+                            <button type="submit" class="btn btn-outline-success">Сменить язык</button>
+                        </form>
+                    </td>
+                    <td>
+
                         <form method="post" action="{% url 'analyze:cart_payment' %}">
                             {% csrf_token %}
                             <input type="hidden" name="cart_id" value="{{ item.id }}">
                             <button type="submit" class="btn btn-primary">Оплатить</button>
-                            <input class="form-check-input" type="checkbox" name="rus_lang"
-                                   id="rus_lang_checkbox_{{ item.doc_id }}">
-                            <label class="form-label" for="rus_lang_checkbox_{{ item.doc_id }}">Документ на русском
-                                языке</label>
+
                         </form>
                     </td>
                     <td>
-                        <form method="post" action="{% url 'analyze:cart_payment' %}">
+                        <form method="post" action="{% url 'analyze:delete_from_cart' %}">
                             {% csrf_token %}
-                            <button type="submit" class="btn btn-danger">Удалить</button>
+                            <input type="hidden" name="cart_id" value="{{ item.id }}">
+                            <button type="submit" class="btn btn-danger">Удалить из корзины</button>
                         </form>
                     </td>
-
                 </tr>
             {% endif %}
         {% endfor %}
-        <form method="post" action="">
 
-        </form>
     </table>
+    <form method="post" action="{% url 'analyze:cart' %}" id="select_for_pay">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-primary">Оплатить выбранные</button>
+    </form>
 
+    <hr>
+    <br>
     <h1 class="text">Архив заказов</h1>
     <table class="table">
         <tr>

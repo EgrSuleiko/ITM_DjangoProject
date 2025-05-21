@@ -1,5 +1,3 @@
-import requests
-import json
 from datetime import datetime
 from django.shortcuts import render, redirect
 from django.views import View
@@ -8,63 +6,81 @@ from django.contrib.auth.decorators import login_required
 
 from analyze.models import Doc, Price, UserToDoc, Cart
 from analyze.forms import FileUploadForm
+from analyze.utils import PhotoServiceAPI
 
-from django_project import settings
+photo_service = PhotoServiceAPI()
 
 
 def index(request):
     return render(request, 'analyze/index.html')
 
 
-@login_required()
+@login_required
 def gallery(request):
+    all_docs = photo_service.get_all_documents()
+    if isinstance(all_docs, Exception):
+        return render(request, 'analyze/gallery.html', {'error': f'Ошибка загрузки файла {str(all_docs)}'})
+
+    all_docs = all_docs.json()
     displayed_docs = []
-    docs = []
-    try:
-        response = requests.get(f'{settings.PHOTO_SERVICE_URL}/documents')
-        response.raise_for_status()
-        docs = response.json()
-    except requests.exceptions.RequestException as e:
-        print(e)
 
-    user_docs_server_id = set(
-        UserToDoc.objects.select_related('doc')
-        .filter(user_id=request.user.id)
-        .values_list('doc__server_id', flat=True)
-    )
+    if all_docs:
+        current_user_docs_server_ids = set(
+            UserToDoc.objects.select_related('doc')
+            .filter(user_id=request.user.id)
+            .values_list('doc__server_id', flat=True)
+        )
+        paid_docs_server_ids = set(
+            Doc.objects.filter(cart__payment=True)
+            .values_list('server_id', flat=True)
+            .distinct()
+        )
+        in_cart_docs_server_ids = set(
+            Doc.objects.filter(cart__payment=False)
+            .values_list('server_id', flat=True)
+            .distinct()
+        )
 
-    for doc in docs:
-        if doc['id'] in user_docs_server_id:
-            displayed_docs.append(doc)
+        for doc in all_docs:
+            if doc['id'] in current_user_docs_server_ids:
+                doc['paid'] = doc['id'] in paid_docs_server_ids
+                doc['in_cart'] = doc['id'] in in_cart_docs_server_ids
+                doc['image_url'] = photo_service.get_document_url(doc['path'])
+                doc['date'] = datetime.strptime(doc['date'], '%Y-%m-%dT%H:%M:%S.%f')
+                displayed_docs.append(doc)
 
-    paid_docs_server_id = set(
-        Doc.objects.filter(cart__payment=True)
-        .values_list('server_id', flat=True)
-        .distinct()
-    )
+    return render(request, 'analyze/gallery.html', {'docs': displayed_docs})
 
-    in_cart_docs_server_id = set(
-        Doc.objects.filter(cart__payment=False)
-        .values_list('server_id', flat=True)
-        .distinct()
-    )
 
-    for doc in displayed_docs:
-        doc['paid'] = doc['id'] in paid_docs_server_id
-        doc['in_cart'] = doc['id'] in in_cart_docs_server_id
-        doc['image_url'] = f'{settings.PHOTO_SERVICE_URL}/documents/file/{doc['path']}'
-        doc['date'] = datetime.strptime(doc['date'], '%Y-%m-%dT%H:%M:%S.%f')
+@login_required
+def delete_document(request):
+    server_doc_id = request.POST.get('server_doc_id')
+    Doc.objects.get(server_id=server_doc_id).delete()
+    photo_service.delete_document(server_doc_id)
 
-    context = {'docs': displayed_docs, 'settings': settings}
-    return render(request, 'analyze/gallery.html', context)
+    return redirect('analyze:gallery')
+
+
+@login_required
+def get_text(request):
+    template_name = 'analyze/text.html'
+    doc_id = request.POST.get('doc_id')
+
+    context = {'doc_id': doc_id}
+
+    response = photo_service.get_document_text(doc_id)
+    if isinstance(response, Exception):
+        context['error'] = str(response)
+        return render(request, template_name, context)
+
+    context['text'] = photo_service.decode_response(response).replace('\\n', '\n')
+
+    return render(request, template_name, context)
 
 
 def prices(request):
-    prices = []
-
-    prices = Price.objects.all().order_by('price')
-    context = {'prices': prices}
-    return render(request, 'analyze/prices.html', context)
+    price_list = Price.objects.all().order_by('price')
+    return render(request, 'analyze/prices.html', {'prices': price_list})
 
 
 class FileUploadView(LoginRequiredMixin, View):
@@ -78,25 +94,14 @@ class FileUploadView(LoginRequiredMixin, View):
         form = FileUploadForm(request.POST, request.FILES)
 
         file = request.FILES['file']
-        try:
-            response = requests.post(
-                url=f'{settings.PHOTO_SERVICE_URL}/documents/upload',
-                files={'uploaded_file': (file.name, file, file.content_type)},
-                timeout=30
-            )
-            response.raise_for_status()
+        response = photo_service.upload_document(files={'uploaded_file': (file.name, file, file.content_type)})
+        if isinstance(response, Exception):
+            return render(request, 'analyze/upload.html', {'form': form,
+                                                           'error': f'Ошибка загрузки файла {str(response)}'})
 
-        except requests.exceptions.RequestException as e:
-            return render(request, self.template_name, {'form': form,
-                                                        'error': f'Ошибка загрузки файла {str(e)}'})
+        server_id = photo_service.decode_response(response)
 
-        try:
-            response_content = json.loads(response.content.decode('utf-8'))
-        except json.decoder.JSONDecodeError as e:
-            return render(request, self.template_name, {'form': form,
-                                                        'error': f'Ошибка загрузки файла {str(e)}'})
-
-        new_doc = Doc(server_id=response_content, file_type=file.content_type.split('/')[-1], size=file.size)
+        new_doc = Doc(server_id=server_id, file_type=file.content_type.split('/')[-1], size=file.size)
         new_doc.save()
 
         new_user_to_doc = UserToDoc(doc=new_doc, user_id=request.user.id)
@@ -104,6 +109,32 @@ class FileUploadView(LoginRequiredMixin, View):
         return redirect('analyze:upload_success')
 
 
+@login_required
+def upload_success(request):
+    return render(request, 'analyze/upload_success.html')
+
+
+@login_required
+def cart(request):
+    if request.method == 'POST':
+        selected_cart_ids = request.POST.getlist('selected_cart_ids')
+        for cart_id in selected_cart_ids:
+            proceed_payment_and_analyze(cart_id)
+
+    cart_items = Cart.objects.filter(user_id=request.user.id)
+
+    return render(request, 'analyze/cart.html', {'cart': cart_items})
+
+
+@login_required
+def cart_payment(request):
+    cart_id = request.POST.get('cart_id')
+    proceed_payment_and_analyze(cart_id)
+
+    return redirect('analyze:cart')
+
+
+@login_required
 def add_to_cart(request):
     server_doc_id = request.POST.get('server_doc_id')
 
@@ -115,58 +146,33 @@ def add_to_cart(request):
     return redirect('analyze:gallery')
 
 
-def cart_payment(request):
-    template_name = 'analyze/cart.html'
+@login_required
+def delete_from_cart(request):
     cart_id = request.POST.get('cart_id')
-
-    cart = Cart.objects.filter(id=cart_id)
-    cart.update(payment=True)
-
-    is_lang_rus = request.POST.get('rus_lang')
-
-    server_doc_id = cart.select_related('doc').values_list('doc__server_id', flat=True)[0]
-    try:
-        response = requests.post(
-            url=f'{settings.PHOTO_SERVICE_URL}/documents/analyze/{server_doc_id}',
-            params={'language': 'rus' if is_lang_rus else 'eng'},
-            timeout=30
-        )
-        response.raise_for_status()
-
-    except requests.exceptions.RequestException as e:
-        return render(request, template_name, {'error': f'Ошибка отправки файла на анализ {str(e)}'})
-
+    Cart.objects.get(id=cart_id).delete()
     return redirect('analyze:cart')
 
 
-def cart(request):
-    cart_items = Cart.objects.filter(user_id=request.user.id)
-    context = {'cart': cart_items}
+def proceed_payment_and_analyze(cart_id):
+    cart_item = Cart.objects.get(id=cart_id)
+    language = cart_item.doc.language
+    server_doc_id = cart_item.doc.server_id
+    response = photo_service.add_task_to_analyze(server_doc_id, params={'language': language})
+    if isinstance(response, Exception):
+        return None
 
-    return render(request, 'analyze/cart.html', context)
-
-
-def get_text(request):
-    template_name = 'analyze/text.html'
-    doc_id = request.POST.get('doc_id')
-
-    context = {'doc_id': doc_id}
-
-    try:
-        response = requests.get(
-            url=f'{settings.PHOTO_SERVICE_URL}/documents/get_text/{doc_id}',
-            timeout=30
-        )
-        response.raise_for_status()
-
-        context['text'] = response.content.decode('utf-8')
-
-    except requests.exceptions.RequestException as e:
-        return render(request, template_name, {'error': f'Ошибка загрузки текста {str(e)}'})
-
-    return render(request, template_name, context)
+    cart_item.payment = True
+    cart_item.save()
+    return True
 
 
-@login_required()
-def upload_success(request):
-    return render(request, 'analyze/upload_success.html')
+@login_required
+def change_language(request):
+    cart_id = request.POST.get('cart_id')
+    cart_item = Cart.objects.get(id=cart_id)
+    doc_item = cart_item.doc
+
+    doc_item.language = 'rus' if doc_item.language == 'eng' else 'eng'
+    doc_item.save()
+
+    return redirect('analyze:cart')

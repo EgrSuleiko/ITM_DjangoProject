@@ -6,6 +6,7 @@ class Doc(models.Model):
     server_id = models.IntegerField()
     file_type = models.TextField(max_length=20)
     size = models.IntegerField()
+    language = models.CharField(max_length=10, default='eng')
 
 
 class UserToDoc(models.Model):

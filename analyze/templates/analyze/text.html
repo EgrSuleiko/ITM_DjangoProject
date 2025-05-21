@@ -3,10 +3,12 @@
 {% block title %}| Текст{% endblock %}
 
 {% block content %}
-    <p>
-        Текст с изображения №{{ doc_id }}
-    </p>
-    <p class="text">
-        {{ text }}
-    </p>
+    {% if error %}
+        <div class="alert alert-danger">
+            <p>{{ error }}</p>
+        </div>
+    {% else %}
+        <p>Текст с изображения №{{ doc_id }}</p>
+        <p class="text">{{ text|linebreaksbr }}</p>
+    {% endif %}
 {% endblock %}
