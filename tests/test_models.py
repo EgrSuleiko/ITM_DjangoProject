@@ -1,7 +1,3 @@
-import pytest
-from analyze.models import Doc
-
-
 def test_user_model(user):
     assert user.is_authenticated
     assert user.username == 'testuser'

@@ -1,4 +1,3 @@
-import pytest
 from unittest.mock import patch, Mock
 from analyze.utils import PhotoServiceAPI
 import requests

@@ -20,7 +20,7 @@ def test_full_flow(client, user, price, mocker):
 
     mocker.patch(
         'analyze.utils.PhotoServiceAPI.decode_response',
-        return_value=123  # Возвращаем число вместо словаря
+        return_value=123
     )
 
     mocker.patch(

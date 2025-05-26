@@ -49,6 +49,8 @@ def gallery(request):
                 doc['date'] = datetime.strptime(doc['date'], '%Y-%m-%dT%H:%M:%S.%f')
                 displayed_docs.append(doc)
 
+        displayed_docs.sort(key=lambda d: d['date'], reverse=True)
+
     return render(request, 'analyze/gallery.html', {'docs': displayed_docs})
 
 
