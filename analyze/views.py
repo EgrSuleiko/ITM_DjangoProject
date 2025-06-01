@@ -46,6 +46,7 @@ def gallery(request):
                 doc['paid'] = doc['id'] in paid_docs_server_ids
                 doc['in_cart'] = doc['id'] in in_cart_docs_server_ids
                 doc['image_url'] = photo_service.get_document_url(doc['path'])
+                doc['image_file'] = photo_service.get_document(doc['path'])
                 doc['date'] = datetime.strptime(doc['date'], '%Y-%m-%dT%H:%M:%S.%f')
                 displayed_docs.append(doc)
 

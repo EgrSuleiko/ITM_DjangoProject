@@ -20,6 +20,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 PHOTO_SERVICE_URL = f'http://{os.getenv('PHOTO_SERVICE_HOST')}:{os.getenv("PHOTO_SERVICE_PORT")}'
 
+PROXY_AUTH = {
+    'TOKEN_URL': f'{PHOTO_SERVICE_URL}/api/token/',
+    'USERNAME': os.getenv('PROXY_USERNAME'),
+    'PASSWORD': os.getenv('PROXY_PASSWORD'),
+}
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
