@@ -15,9 +15,7 @@
                     <li class="list-group-item">
                         <p>id: {{ doc.id }}</p>
                         <p>path: {{ doc.path }}</p>
-                        <img class="img-fluid" src="{{ doc.image_url }}" alt="{{ doc.image_url }}">
-                        <p>Сверху старая картинка. Снизу новая</p>
-                        <img class="img-fluid" src="{{ doc.image_file }}" alt="{{ doc.image_file }}">
+                        <img class="img-fluid" src="data:{{ doc.image_type }};base64, {{ doc.image_content }}" alt="{{ doc.image_type }}: {{ doc.image_content }}">
                         <time class="text-muted">{{ doc.date }}</time>
 
                         {% if doc.paid %}

@@ -1,3 +1,4 @@
+import base64
 from datetime import datetime
 from django.shortcuts import render, redirect
 from django.views import View
@@ -45,8 +46,9 @@ def gallery(request):
             if doc['id'] in current_user_docs_server_ids:
                 doc['paid'] = doc['id'] in paid_docs_server_ids
                 doc['in_cart'] = doc['id'] in in_cart_docs_server_ids
-                doc['image_url'] = photo_service.get_document_url(doc['path'])
-                doc['image_file'] = photo_service.get_document(doc['path'])
+                doc['image'] = photo_service.get_document(doc['path'])
+                doc['image_content'] = base64.b64encode(doc['image'].content).decode('utf-8')
+                doc['image_type'] = doc['image'].headers.get('Content-Type')
                 doc['date'] = datetime.strptime(doc['date'], '%Y-%m-%dT%H:%M:%S.%f')
                 displayed_docs.append(doc)
 
