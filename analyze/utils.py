@@ -8,8 +8,8 @@ class PhotoServiceAPI:
     def __init__(self):
         self._base_url = settings.PHOTO_SERVICE_URL
         self._auth_url = settings.PROXY_AUTH['TOKEN_URL']
-        self._access_token = None
-        self._refresh_token = None
+        self._access_token_value = None
+        self._refresh_token_value = None
 
     def make_request(self, request_method, create_url, second_try=False, *args, **kwargs):
         auth_headers = self._get_auth_headers()
@@ -49,25 +49,25 @@ class PhotoServiceAPI:
                 },
             )
             response.raise_for_status()
-            self._access_token = response.json()['access']
-            self._refresh_token = response.json()['refresh']
+            self._access_token_value = response.json()['access']
+            self._refresh_token_value = response.json()['refresh']
         except requests.exceptions.RequestException as e:
             return e
         return response
 
     def _get_auth_headers(self):
-        if not self._access_token:
+        if not self._access_token_value:
             self._authenticate()
-        return {'Authorization': f'Bearer {self._access_token}'}
+        return {'Authorization': f'Bearer {self._access_token_value}'}
 
     def _refresh_token(self):
         try:
             response = requests.post(
                 url=f'{self._auth_url}/refresh',
-                data={'refresh': self._refresh_token},
+                data={'refresh': self._refresh_token_value},
             )
             response.raise_for_status()
-            self._access_token = response.json()['access']
+            self._access_token_value = response.json()['access']
         except requests.exceptions.RequestException as e:
             return e
         return response
