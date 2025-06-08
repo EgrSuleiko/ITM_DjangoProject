@@ -22,7 +22,7 @@ class PhotoServiceAPI:
                 # В случае, если это первая попытка, обновляем токен и делаем ещё одну попытку.
                 # Чтобы не возникло бесконечной рекурсии, используется "second_try" переменная
                 if not second_try:
-                    return self.make_request(request_method, create_url, second_try=True, *args, **kwargs)
+                    return self.make_request(request_method, create_url, True, *args, **kwargs)
 
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
